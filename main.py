@@ -1,19 +1,23 @@
 from typing import Union
 from typing import List, Annotated
 
+# FastAPI
 from fastapi import FastAPI, Request, HTTPException, Depends
-
-from twilio.twiml.messaging_response import MessagingResponse
-from twilio.rest import Client
 
 # import SQLAlchemy from provider
 import provider.models
 from provider.db import engine, SessionLocal
 from sqlalchemy.orm import Session
+from sqlalchemy import update
 
-# twilio connection
-from provider.send_twilio import TwilioNewConnection, TwilioHandler
-tw = TwilioHandler()
+# import function
+from function.generatedoc import Doc_Auto
+from docx import Document
+
+# Fonnte Connection
+from provider.send_rq import ResponseHandler
+tw = ResponseHandler()
+
 
 # create database column
 provider.models.Base.metadata.create_all(bind=engine)
@@ -27,51 +31,47 @@ def get_db():
         db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
-
+word = Doc_Auto(db_con=db_dependency)
 app = FastAPI()
-client = TwilioNewConnection()
+
 
 # create fastapi endpoints
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
 
+@app.get("/message")
+def read_root():
+    return {"Hello": "World"}
+
 @app.post("/message")
 async def message_handler(req: Request, db: db_dependency):
-
-    twilio_data = await req.form()
-
+    incoming_payload = await req.json()
+    
     # sumber
-    message_body = twilio_data.get('Body','')
-    nomor_hp = twilio_data.get('From', '')
-    print(nomor_hp)
-    name = twilio_data.get('ProfileName', 'User')
-
+    message_body = incoming_payload.get('pesan','')
     print(message_body)
-    # print(twilio_data)
+    nomor_hp = incoming_payload.get('pengirim', '')
+    name = incoming_payload.get('name', 'User')
+
     response_message = "Received message: " + message_body
 
-    # check user
     user_activity = db.query(provider.models.user_activity).filter_by(no_hp = nomor_hp).first()
-    # print(user_activity.no_hp)
-    
-    twiml_response = MessagingResponse()
-    twiml_response.message(response_message)
-    
+
     # cek aktivitas user & greeting
     if user_activity == 'None' or user_activity == None:
-        tw.sendMsg(nomor_hp, f"Selamat datang {name}! Ketik 'mulai' untuk menu pilihan.")
-        new_user = provider.models.user_activity(no_hp=nomor_hp, activity='registering')
+        tw.sendMsg(nomor_hp, f"Selamat datang dalam sistem KOPITU Desa AI, {name}! Ketik 'mulai' untuk menu pilihan.")
+        new_user = provider.models.user_activity(no_hp=nomor_hp, activity='registered')
         db.add(new_user)
         db.commit()
     
     if user_activity.no_hp == nomor_hp:
         # membuat form otomatis
-        if user_activity.activity == 'registering':
+        if user_activity.activity == 'registered':
             user_activity.activity = 'decision'
             db.commit()
             tw.sendMsg(nomor_hp, f"Apa yang dapat kami bantu?\n1. Membuat Formulir\n2. Membuat Laporan")
-            return twiml_response.to_xml()
+            return {"success": True}
             
         if user_activity.activity == 'decision':
             # change activity
@@ -82,59 +82,270 @@ async def message_handler(req: Request, db: db_dependency):
             if message_body == "1":
                 user_activity.activity = f'service_1'
                 db.commit()
-                tw.sendMsg(nomor_hp, f"Pilih jenis formulir yang dibutuhkan: \na. Formulir KTP\nb. Formulir Usaha\nc. Formulir Rekomendasi")                
-                return twiml_response.to_xml()
+                tw.sendMsg(nomor_hp, f"Pilih jenis formulir yang dibutuhkan: \na. Formulir KTP\nb. Formulir Usaha\nc. Formulir Rekomendasi\nd. Surat Keterangan Tidak Mampu")                
+                return {"success": True}
 
             if message_body == "2":
-                user_activity.activity = f'service_2'
+                # user_activity.activity = f'service_2'
+                user_activity.activity = f'registrating'
                 db.commit()
-                tw.sendMsg(nomor_hp, f"Sistem pembuatan laporan sedang dalam proses (ketik 'menu' untuk kembali)")
-                return twiml_response.to_xml()
+                tw.sendMsg(nomor_hp, f"Sistem pembuatan laporan sedang dalam proses (ketik 'menu' untuk kembali ke pilihan awal.)")
+                return {"success": True}
             
             if message_body not in ['1','2']:
                 user_activity.activity = 'decision'
                 db.commit()
-                tw.sendMsg(nomor_hp, f"Pilihan anda tidak ada.")                
-            return twiml_response.to_xml()
+                tw.sendMsg(nomor_hp, f"Pilihan Anda tidak ada.")                
+            return {"success": True}
         
         # membuat form otomatis
-        print("CURR ACT: ", user_activity.activity)
-        print("SPLIT: ", user_activity.activity.split(","))
+
         if user_activity.activity == 'service_1':
             print("masuk ke service")
-
             # lanjutin pembuatan form berdasarkan data yang diisi
-            if message_body == 'a':
-                user_activity.activity = f'service_1#KTP'
+            if message_body == 'a' or 'A':
+                user_activity.activity = f'service_1#KTP#fill'
+                tw.sendMsg(nomor_hp, f"""-=Proses pembuatan surat mengurus KTP=-\nIsilah data berikut dengan lengkap:\n1. Nama lengkap\n2. No.Kartu Keluarga\n3. Nomor Induk Kependudukan (NIK)\n4. Alamat Tempat Tinggal\n5. RT/RW\n6. Desa\n7. Kecamatan\n8. Kabupaten/Kota\n9. Provinsi\n10. Tujuan Surat(Pembuatan/Pembaharuan/Laporan Kehilangan)\nBalas dalam satu pesan hingga seluruh data lengkap\n(Contoh: desti, 123456789, 10 desember 1990, dll)""")
                 db.commit()                    
-            if message_body == 'b':
-                user_activity.activity = f'service_1#Usaha'
+            elif message_body == 'b' or 'B':
+                user_activity.activity = f'service_1#Usaha#fill'
+                tw.sendMsg(nomor_hp, f"""-=Proses pembuatan surat mengurus Usaha=-\nIsilah data berikut dengan lengkap:
+                           1. Nama lengkap\n2. Nomor Induk Kependudukan (NIK)\n3. Jenis Kelamin (P/L)
+                           4. Tempat/Tanggal Lahir\n5.Alamat Tempat Tinggal\n6. RT/RW\n7. Pekerjaan\n8. Nama Usaha\n
+                           9. Tanggal Usaha Dimulai\n10. Tujuan Surat
+                           Balas dalam satu pesan hingga seluruh data lengkap\n(Contoh: desti, 123456789, 10 desember 1990, dll)""")
                 db.commit() 
-            if message_body == 'c':
-                user_activity.activity = f'service_1#Rekomendasi'
-                db.commit() 
-            if message_body not in ['a','b','c']:
-                user_activity.activity = 'decision'
+            elif message_body == 'c' or 'C':
+                user_activity.activity = f'service_1#Rekomendasi#fill'
+                tw.sendMsg(nomor_hp, f"""-=Proses pembuatan surat mengurus Usaha=-\nIsilah data berikut dengan lengkap:\n1. Nama lengkap\n2. Nomor Induk Kependudukan (NIK)\n3. Tempat/Tanggal Lahir\n4. Warganegara\n7. Agama\n8. Pekerjaan\n9. Alamat\n10. Tujuan Surat Rekomendasi\nBalas dalam satu pesan hingga seluruh data lengkap\n(Contoh: desti, 123456789, 10 desember 1990, dll)""")
                 db.commit()
-                tw.sendMsg(nomor_hp, f"Pilihan anda tidak ada.")
-            return twiml_response.to_xml()
-        elif user_activity.activity.startswith('service_1#'):
+            elif message_body == 'd' or 'D':
+                user_activity.activity = f'service_1#SKTM#fill'
+                tw.sendMsg(nomor_hp, f"-=Proses pembuatan surat mengurus Surat Keterangan Tidak Mampu (SKTM)=-\n(sedang dalam proses)")
+                db.commit()             
+            elif message_body not in ['a','A','b','B','c','C','d','D']:
+                user_activity.activity = 'registered'
+                db.commit()
+                tw.sendMsg(nomor_hp, f"Pilihan Anda tidak ada.\nKetik 'menu' untuk kembali.")
+            return {"success": True}
+        
+        if user_activity.activity.startswith('service_1#'):
             user_activity.activity.split('#')
             act = user_activity.activity.split('#')
-            print("masuk ke starswith")
+            print(act)
+            # FORM KTP
+            if act[1] == 'KTP':
+                text = message_body
+                data_text = text.split(',')
+                ## buat if else seandainya datanya udah ada.
+                if len(data_text) == 10:
+                    item = provider.models.form_ktp(
+                        nama=data_text[0],
+                        no_kk=data_text[1],
+                        nik=data_text[2],
+                        alamat=data_text[3],
+                        rtrw=data_text[4],
+                        desa=data_text[5],
+                        kecamatan=data_text[6],
+                        kabupaten_kota=data_text[7],
+                        provinsi=data_text[8],
+                        tujuan_surat=data_text[9],
+                        id_user_activity=int(user_activity.id))
+
+                    existing_ktp_form = db.query(provider.models.form_ktp).filter_by(id_user_activity = user_activity.id).first()
+                    print(existing_ktp_form)
+                    if existing_ktp_form:
+                        existing_ktp_form.nama = item.nama
+                        existing_ktp_form.no_kk = item.no_kk
+                        existing_ktp_form.nik = item.nik
+                        existing_ktp_form.alamat = item.alamat
+                        existing_ktp_form.rtrw = item.rtrw
+                        existing_ktp_form.desa = item.desa
+                        existing_ktp_form.kecamatan = item.kecamatan
+                        existing_ktp_form.kabupaten_kota = item.kabupaten_kota
+                        existing_ktp_form.provinsi = item.provinsi
+                        existing_ktp_form.tujuan_surat = item.tujuan_surat  
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        Doc_Auto.doc_ktp(user_activity)
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+                    else:
+                        db.add(item)
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+
+                if len(data_text) < 10:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data kurang/tidak memenuhi format pengiriman. Silakan coba lagi.")
+                if len(data_text) > 10:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data yang diberikan terlalu banyak/tidak memenuhi format pengiriman. Silakan coba lagi.")
+
+            if act[1] == 'Usaha':
+                text = message_body
+                data_text = text.split(',')
+                ## buat if else seandainya datanya udah ada.
+                if len(data_text) == 11:
+                    item = provider.models.form_usaha(
+                        nama=data_text[0],
+                        nik=data_text[1],
+                        jenis_kelamin=data_text[2],
+                        ttl=data_text[3],
+                        alamat=data_text[4],
+                        pekerjaan=data_text[5],
+                        rtrw=data_text[6],
+                        nama_usaha=data_text[7],
+                        start_usaha=data_text[8],
+                        alamat_usaha=data_text[9],
+                        tujuan_surat=data_text[10],
+                        id_user_activity=int(user_activity.id))
+
+                    existing_usaha_form = db.query(provider.models.form_usaha).filter_by(id_user_activity = user_activity.id).first()
+                    print(existing_usaha_form)
+                    if existing_usaha_form:
+                        existing_usaha_form.nama = item.nama
+                        existing_usaha_form.nik = item.nik
+                        existing_usaha_form.jenis_kelamin = item.jenis_kelamin
+                        existing_usaha_form.ttl = item.ttl
+                        existing_usaha_form.alamat = item.alamat
+                        existing_usaha_form.pekerjaan = item.pekerjaan
+                        existing_usaha_form.rtrw = item.rtrw
+                        existing_usaha_form.nama_usaha = item.nama_usaha
+                        existing_usaha_form.start_usaha = item.start_usaha
+                        existing_usaha_form.alamat_usaha = item.alamat_usaha
+                        existing_usaha_form.tujuan_surat = item.tujuan_surat  
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+                    else:
+                        db.add(item)
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+
+                if len(data_text) < 11:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data kurang/tidak memenuhi format pengiriman. Silakan coba lagi.")
+
+                if len(data_text) > 11:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data yang diberikan terlalu banyak/tidak memenuhi format pengiriman. Silakan coba lagi.")
+
+            ## FORM USAHA
             if act[1] == 'Rekomendasi':
-                tw.sendMsg(nomor_hp, f"Berikut surat rekomendasi anda")                
-            return twiml_response.to_xml()
+                text = message_body
+                data_text = text.split(',')
+                ## buat if else seandainya datanya udah ada.
+                if len(data_text) == 8:
+                    item = provider.models.form_rekomendasi(
+                        nama=data_text[0],
+                        nik=data_text[1],
+                        ttl=data_text[2],
+                        warganegara=data_text[3],
+                        agama=data_text[4],
+                        pekerjaan=data_text[5],
+                        alamat=data_text[6],
+                        tujuan_surat=data_text[7],
+                        id_user_activity=int(user_activity.id))
+
+                    existing_rekomendasi_form = db.query(provider.models.form_rekomendasi).filter_by(id_user_activity = user_activity.id).first()
+                    print(existing_rekomendasi_form)
+                    if existing_rekomendasi_form:
+                        existing_rekomendasi_form.nama = item.nama
+                        existing_rekomendasi_form.nik = item.nik
+                        existing_rekomendasi_form.ttl = item.ttl
+                        existing_rekomendasi_form.warganegara = item.warganegara
+                        existing_rekomendasi_form.agama = item.agama
+                        existing_rekomendasi_form.pekerjaan = item.pekerjaan
+                        existing_rekomendasi_form.alamat = item.alamat
+                        existing_rekomendasi_form.tujuan_surat = item.tujuan_surat  
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+                    else:
+                        db.add(item)
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+
+                if len(data_text) < 8:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data kurang/tidak memenuhi format pengiriman. Silakan coba lagi.")
+
+                if len(data_text) > 8:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data yang diberikan terlalu banyak/tidak memenuhi format pengiriman. Silakan coba lagi.")
+
+            if act[1] == 'SKTM':
+                text = message_body
+                data_text = text.split(',')
+                ## buat if else seandainya datanya udah ada.
+                if len(data_text) == 10:
+                    item = provider.models.form_sktm(
+                        nama=data_text[0],
+                        nik=data_text[1],
+                        jenis_kelamin=data_text[2],
+                        ttl=data_text[3],
+                        warganegara=data_text[4],
+                        agama=data_text[5],
+                        pekerjaan=data_text[6],
+                        status=data_text[7],
+                        alamat=data_text[8],
+                        tujuan_surat=data_text[9],
+                        id_user_activity=int(user_activity.id))
+                    existing_sktm_form = db.query(provider.models.form_sktm).filter_by(id_user_activity = user_activity.id).first()
+                    print(existing_sktm_form)
+                    if existing_sktm_form:
+                        existing_sktm_form.nama = item.nama
+                        existing_sktm_form.nik = item.nik
+                        existing_sktm_form.jenis_kelamin = item.jenis_kelamin
+                        existing_sktm_form.ttl = item.ttl
+                        existing_sktm_form.warganegara = item.warganegara
+                        existing_sktm_form.agama = item.agama
+                        existing_sktm_form.pekerjaan = item.pekerjaan
+                        existing_sktm_form.status = item.status
+                        existing_sktm_form.alamat = item.alamat
+                        existing_sktm_form.tujuan_surat = item.tujuan_surat  
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+                    else:
+                        db.add(item)
+                        user_activity.activity = f'finish'
+                        db.commit()
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+
+                if len(data_text) < 10:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data kurang/tidak memenuhi format pengiriman. Silakan coba lagi.")
+
+                if len(data_text) > 10:
+                    user_activity.activity = f'service_1#'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"Data yang diberikan terlalu banyak/tidak memenuhi format pengiriman. Silakan coba lagi.")
+            return {"success": True}
 
         # membuat laporan customer service
         if user_activity.activity.startswith('service_2'):
-            user_activity.activity = f'service_report'
+            # user_activity.activity = f'service_report'
+            user_activity.activity = f'registered'
             db.commit()
-            return twiml_response.to_xml()
+            tw.sendMsg(nomor_hp, f"Layanan sedang dalam proses perbaikan. Coba lagi nanti.\n(Ketik 'menu' untuk kembali.)")            
+            return {"success": True}
 
-    return twiml_response.to_xml()
+        if user_activity.activity == 'finish':
+            user_activity.activity = 'decision'
+            db.commit()
+            tw.sendMsg(nomor_hp, f"Apa yang dapat kami bantu?\n1. Membuat Formulir\n2. Membuat Laporan")
+            return {"success": True}
+    return {"success": True}
     
-# def message_handler(item: dict):
-    # print(f"Payload: {item}")
-    # return item
 
