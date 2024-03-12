@@ -11,13 +11,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import update
 
 # import function
-from function.generatedoc import Doc_Auto
-from docx import Document
+from function.docxauto import Doc_Auto
+# from docx import Document
 
 # Fonnte Connection
 from provider.send_rq import ResponseHandler
 tw = ResponseHandler()
-
 
 # create database column
 provider.models.Base.metadata.create_all(bind=engine)
@@ -167,7 +166,7 @@ async def message_handler(req: Request, db: db_dependency):
                         existing_ktp_form.tujuan_surat = item.tujuan_surat  
                         user_activity.activity = f'finish'
                         db.commit()
-                        Doc_Auto.doc_ktp(user_activity)
+                        # Doc_Auto.doc_ktp(user_activity)
                         tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
                     else:
                         db.add(item)
@@ -235,7 +234,7 @@ async def message_handler(req: Request, db: db_dependency):
                     user_activity.activity = f'service_1#'
                     db.commit()
                     tw.sendMsg(nomor_hp, f"Data yang diberikan terlalu banyak/tidak memenuhi format pengiriman. Silakan coba lagi.")
-
+            
             ## FORM USAHA
             if act[1] == 'Rekomendasi':
                 text = message_body
