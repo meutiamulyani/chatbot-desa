@@ -8,6 +8,7 @@ class user_activity(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     no_hp = Column(String, unique=True)
     activity = Column(String)
+
     form_rekomendasi = relationship('form_rekomendasi', back_populates='user_activity')
     form_usaha = relationship('form_usaha', back_populates='user_activity')
     form_ktp = relationship('form_ktp', back_populates='user_activity')

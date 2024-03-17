@@ -13,7 +13,20 @@ class ResponseHandler():
 
         files=[]
         headers = {
-            'Authorization': 'j#ao_dX1JFfF8hAUsNXM'
+            'Authorization': '98azMYpnQpZjQJCbiU3A'
         }
 
         response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)
+    
+    def sendAttach(self, to, message, attachment):
+        payload = {
+            'target': to,
+            'message': message
+        }
+
+        files=[]
+        headers = {
+            'Authorization': '98azMYpnQpZjQJCbiU3A'
+        }
+
+        response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)        
