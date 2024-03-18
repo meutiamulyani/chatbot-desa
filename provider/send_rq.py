@@ -13,7 +13,7 @@ class ResponseHandler():
 
         files=[]
         headers = {
-            'Authorization': '98azMYpnQpZjQJCbiU3A'
+            'Authorization': 'j#ao_dX1JFfF8hAUsNXM'
         }
 
         response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)
@@ -26,7 +26,7 @@ class ResponseHandler():
 
         files=[]
         headers = {
-            'Authorization': '98azMYpnQpZjQJCbiU3A'
+            'Authorization': 'j#ao_dX1JFfF8hAUsNXM'
         }
 
         response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)        

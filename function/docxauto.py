@@ -61,7 +61,7 @@ class Doc_Auto():
             cols_cells[7].text = ktp_doc.kabupaten_kota
             cols_cells[8].text = ktp_doc.provinsi
             cols_cells[9].text = ktp_doc.tujuan_surat
-
+            file_name = ktp_doc.nik + "tanaggal"
             # doc.add_page_break()
 
             self.doc.add_paragraph(
@@ -70,7 +70,11 @@ class Doc_Auto():
             self.doc.add_paragraph(
                 f'Demikian surat keterangan ini dibuat, atas perhatian dan kerjasamanya terima kasih.'
             )
-            save = self.doc.save(f'doc/demo.docx')
+            save = self.doc.save(f'{file_name}.docx')
+            # client_host = request.client.host
+            # protocol = request.url.scheme
+            # return protocol://client_host/download/user_tanggal.docx
+            return file_name
 
         elif jenis_form == 'Usaha':
             print("lancar")
@@ -173,4 +177,4 @@ class Doc_Auto():
         else:
             print("error!")
 
-        return save
+        return None

@@ -55,6 +55,16 @@ def read_root():
 def read_root():
     return {"Hello": "World"}
 
+@app.get("/download/{file_name}")
+async def get_pdf(file_name: str, request: Request):
+    client_host = request.client.host
+    print(client_host)
+    pdf_path = f"public/files/{file_name}"
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return FileResponse(pdf_path, media_type="application/pdf")
+
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
     payload = await Request.json()
@@ -205,12 +215,12 @@ async def message_handler(req: Request, db: db_dependency):
                         existing_ktp_form.provinsi = item.provinsi
                         existing_ktp_form.tujuan_surat = item.tujuan_surat  
                         db.commit()
-                        word.wrapper_doc(user_activity.no_hp, 'KTP') # <- buat status pembuatan form
+                        file_name = word.wrapper_doc(user_activity.no_hp, 'KTP') # <- buat status pembuatan form
                         user_activity.activity = f'finish'
                         db.commit()
 
                         # Doc_Auto.doc_ktp(user_activity)
-                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
+                        tw.sendMsg(nomor_hp, f"Terima kasih. Berikut dokumen anda yang telah diproses .\n(Akun ujicoba gratis dan belum dapat mengirimkan attachment)\n\nKetik 'menu' untuk kembali.")
                     else:
                         db.add(item)
                         db.commit()
