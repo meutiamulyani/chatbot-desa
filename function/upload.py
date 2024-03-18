@@ -11,8 +11,6 @@ file_path = "doc/demo.docx"
 
 # Prepare the file to upload
 files = {"file": ("demo.docx", open(file_path, "rb"))}
-
-# Make the request to upload the file
 response = requests.post(upload_endpoint, files=files)
 
 # Check if the request was successful
@@ -20,9 +18,7 @@ if response.status_code == 200:
     # Get the JSON response containing the file path and URL
     response_data = response.json()
     
-    # Extract the file URL from the response
-    file_url = response_data["file_url"]
-    
+    file_url = response_data["file_url"]    
     print("File uploaded successfully.")
     print("File URL:", file_url)
 else:
