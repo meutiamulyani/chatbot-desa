@@ -27,3 +27,13 @@ if response.status_code == 200:
     print("File URL:", file_url)
 else:
     print("Error uploading file:", response.text)
+
+class upload():
+    def __init__(self, db_con, model, path):
+        # Create a new Document
+        self.db_con = db_con
+        self.model = model
+        self.path = path
+    
+    def request(self):
+        return

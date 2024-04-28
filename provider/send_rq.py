@@ -18,9 +18,10 @@ class ResponseHandler():
 
         response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)
     
-    def sendAttach(self, to, message, attachment):
+    def sendAttach(self, to, url, message):
         payload = {
             'target': to,
+            'url': url,
             'message': message
         }
 
