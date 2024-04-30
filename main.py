@@ -1,5 +1,6 @@
 from typing import Union
 from typing import List, Annotated
+import threading, time
 
 # FastAPI
 from fastapi import FastAPI, Request, HTTPException, Depends, File, BackgroundTasks
@@ -418,18 +419,45 @@ async def message_handler(req: Request, db: db_dependency):
 
         # Chat dengan Customer Service customer service
         if user_activity.activity.startswith('service_2'):
+            def timeout(event):
+                global message_body
+                if message_body is None and not event.is_set():
+                    user_activity.activity = f'finish'
+                    db.commit()
+                    tw.sendMsg(nomor_hp, f"*[CUSTOMER SERVICE]* layanan customer service sedang di luar jangkauan. Harap coba lagi nanti.")            
+
             act_cs = user_activity.activity.split('#')
             # TUNGGU RESPON AGENTS
             if act_cs[2] == 'start':
                 tw.sendMsg(nomor_hp, f"*[CUSTOMER SERVICE]*\nSebentar lagi admin akan berkomunikasi dengan Anda, harap menunggu sebentar. (pilih 'finish' atau 'end' untuk mengakhiri sesi percakapan.)")            
                 user_activity.activity = 'service_2#cs#incommunication'
                 db.commit()
-            
-            if act_cs[2] == 'incommunication':
+                # event = threading.Event()
+                # # Start the timer thread
+                # timer = threading.Timer(10, timeout, args=(event,))
+                # timer.start()
+                
+                # while True:
+                #     # Simulate receiving message body from WhatsApp (replace with your actual logic)
+                #     # For demonstration, we'll just set a message body every 10 seconds
+                #     print("Received message:", message_body)
+
+                #     # Set the event flag to indicate that a message was received
+                #     event.set()
+
+                #     # Reset the event flag for the next iteration
+                #     event.clear()
+
+                #     # Sleep for 10 seconds (simulating a delay between messages)
+                #     time.sleep(10)
+
+            if act_cs[2] == 'incommunication':                                    
                 if message_body == 'finish' or message_body == 'end':
                     user_activity.activity = f'finish'
                     db.commit()
                     tw.sendMsg(nomor_hp, f"sesi percakapan telah berakhir, terima kasih telah menghubungi administrator kami. {menu}")
+                    # event.clear()
+                            
             return {"success": True}
 
         # FAQ Desa Dompyong Kulon
