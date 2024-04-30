@@ -1,4 +1,7 @@
 .venv
+.env
 __pycache__
 testing.py
 public/
+function/__pycache__
+provider/__pycache__
