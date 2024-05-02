@@ -30,4 +30,18 @@ class ResponseHandler():
             'Authorization': '98azMYpnQpZjQJCbiU3A'
         }
 
-        response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)        
+        response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)  
+
+    def sendAdmin(self, to, url, message):
+        payload = {
+            'target': to,
+            'url': url,
+            'message': message
+        }
+
+        files=[]
+        headers = {
+            'Authorization': '98azMYpnQpZjQJCbiU3A'
+        }
+
+        response = requests.request("POST", ResponseHandler.url, headers=headers, data=payload, files=files)      

@@ -1,6 +1,7 @@
 from typing import Union
 from typing import List, Annotated
 import threading, time
+from dotenv import dotenv_values
 
 # FastAPI
 from fastapi import FastAPI, Request, HTTPException, Depends, File, BackgroundTasks
@@ -71,11 +72,15 @@ async def message_handler(req: Request, db: db_dependency):
     protocol = req.url.scheme
     host = req.headers["host"]
 
-    # sumber
+    # DATA SOURCE
     message_body = incoming_payload.get('pesan','')
     print(message_body)
     nomor_hp = incoming_payload.get('pengirim', '')
+    hp_admin = '6285324075075'
     name = incoming_payload.get('name', 'User')
+
+    env_vars = dotenv_values(".env")
+    admin_acc = env_vars.get('admin')
 
     # response_message = "Received message: " + message_body
     user_activity = db.query(provider.models.user_activity).filter_by(no_hp = nomor_hp).first()
@@ -87,6 +92,7 @@ async def message_handler(req: Request, db: db_dependency):
         db.add(new_user)
         db.commit()
     
+    # USER INTERFACE
     if user_activity.no_hp == nomor_hp:
         menu = "_(Kirim 'menu' untuk kembali ke pilihan awal.)_"
         # membuat form otomatis
@@ -203,6 +209,7 @@ async def message_handler(req: Request, db: db_dependency):
 
                         # Doc_Auto.doc_ktp(user_activity)
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_ktp_form.nama}")
                         return {"success": True}
                     else:
                         db.add(item)
@@ -214,6 +221,7 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_ktp_form.nama}")
                         return {"success": True}
 
 
@@ -270,6 +278,7 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_usaha_form.nama}")
                         return {"success": True}
 
                     else:
@@ -282,6 +291,7 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_usaha_form.nama}")
                         return {"success": True}
 
                 if len(data_text) < 11:
@@ -331,6 +341,9 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_rekomendasi_form.nama}")
+                        return {"success": True}
+
                     else:
                         db.add(item)
                         db.commit()
@@ -341,6 +354,8 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_rekomendasi_form.nama}")
+                        return {"success": True}
 
                 if len(data_text) < 8:
                     tw.sendMsg(nomor_hp, f"Data kurang/tidak memenuhi format pengiriman. Silakan coba lagi.")
@@ -393,6 +408,9 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_sktm_form.nama}")
+                        return {"success": True}
+
                     else:
                         db.add(item)
                         db.commit()
@@ -403,6 +421,9 @@ async def message_handler(req: Request, db: db_dependency):
                         db.commit()
 
                         tw.sendAttach(nomor_hp, url, f"Terima kasih. Berikut dokumen anda yang telah diproses.\n\nLink bila dokumen tidak dapat dibuka: {url}\n\nKetik 'menu' untuk kembali.")
+                        tw.sendAdmin(hp_admin, url, f"Berikut data yang dikirimkan oleh {existing_sktm_form.nama}")
+                        return {"success": True}
+
 
                 if len(data_text) < 10:
                     tw.sendMsg(nomor_hp, f"Data kurang/tidak memenuhi format pengiriman. Silakan coba lagi.")
@@ -419,12 +440,12 @@ async def message_handler(req: Request, db: db_dependency):
 
         # Chat dengan Customer Service customer service
         if user_activity.activity.startswith('service_2'):
-            def timeout(event):
-                global message_body
-                if message_body is None and not event.is_set():
-                    user_activity.activity = f'finish'
-                    db.commit()
-                    tw.sendMsg(nomor_hp, f"*[CUSTOMER SERVICE]* layanan customer service sedang di luar jangkauan. Harap coba lagi nanti.")            
+            # def timeout(event):
+            #     global message_body
+            #     if message_body is None and not event.is_set():
+            #         user_activity.activity = f'finish'
+            #         db.commit()
+            #         tw.sendMsg(nomor_hp, f"*[CUSTOMER SERVICE]* layanan customer service sedang di luar jangkauan. Harap coba lagi nanti.")            
 
             act_cs = user_activity.activity.split('#')
             # TUNGGU RESPON AGENTS
@@ -473,12 +494,12 @@ async def message_handler(req: Request, db: db_dependency):
                 db.commit()
                 return {"success": True}                              
             elif message_body not in ['a', 'b', 'kembali', 'menu']:
-                tw.sendMsg(nomor_hp, 'Pilihan ada tidak ada, silakan membalas "kembali" atau pilih "batal" untuk kembali ke menu.')
+                tw.sendMsg(nomor_hp, 'Pilihan ada tidak ada, silakan membalas "kembali" atau pilih "menu" untuk kembali ke menu.')
                 return {"success": True}
 
         if user_activity.activity.startswith('service_3#'):
             act_faq = user_activity.activity.split('#')
-            back = '_(Pilih "kembali" untuk melihat informasi lain atau "batal" untuk kembali ke menu.)_'
+            back = '_(Pilih "kembali" untuk melihat informasi lain atau "menu" untuk kembali ke menu.)_'
             if act_faq[2] == 'desa':
                 # TENTANG DESA
                 if message_body == '1' or message_body.startswith('tentang'):
@@ -563,13 +584,17 @@ async def message_handler(req: Request, db: db_dependency):
             db.commit()
             tw.sendMsg(nomor_hp, f"Selamat datang kembali!\nApa yang dapat kami bantu, {name}?\n1. Membuat Formulir Administrasi Desa Dompyong Kulon\n2. Chat dengan Customer Service\n3. Informasi Umum")
             return {"success": True}
-
+    
         if message_body == 'menu' or message_body == 'Menu':
             user_activity.activity = 'decision'
             db.commit()
             tw.sendMsg(nomor_hp, f"Selamat datang kembali!\nApa yang dapat kami bantu, {name}?\n1. Membuat Formulir Administrasi Desa Dompyong Kulon\n2. Chat dengan Customer Service\n3. Informasi Umum")
             return {"success": True}
         
+        if message_body == admin_acc:
+            user_activity.activity = 'admin#decision'
+            db.commit
+            tw.sendMsg(nomor_hp, f"Masuk sebagai role administrator Dompyong Kulon.")
     return {"success": True}
     
 
